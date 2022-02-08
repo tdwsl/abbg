@@ -80,21 +80,26 @@ char map_tileChar(int *t) {
 	switch(*t) {
 	case T_GRASS: return ',';
 	case T_TREE: return 'O';
-	case T_WOODWALL: return map_autotileChar(t);
-	case T_STONEWALL: return 176;
+	case T_WOODWALL: return '-';//return map_autotileChar(t);
+	case T_STONEWALL: return '~';//return 176;
 	case T_FLOOR: return '.';
 	default: return '?';
 	}
 }
 
-void map_tilePair(int t) {
+int map_tilePair(int t) {
 	switch(t) {
 	case T_GRASS:
 		return BLACK_GREEN;
 	case T_WOODWALL:
-		return BROWN_BLACK;
+		return RED_BLACK;
+	case T_TREE:
+		return BLACK_RED;
+	case T_STONEWALL:
+		return WHITE_BLACK;
 	default:
 		return 0;
+	}
 }
 
 void map_print() {
@@ -114,8 +119,8 @@ void map_fillRect(int x, int y, int w, int h, int t) {
 
 void map_draw(int x, int y) {
 	for(int i = 0; i < map.w*map.h; i++) {
-		attr_set(COLOR_PAIR(map_tilePair(map.arr[i])));
+		attrset(COLOR_PAIR(map_tilePair(map.arr[i])));
 		mvaddch(i/map.w+y, i%map.w+x, map_tileChar(&map.arr[i]));
 	}
-	attr_set(A_NONE);
+	attrset(A_NORMAL);
 }

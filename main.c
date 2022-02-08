@@ -2,6 +2,7 @@
 #include <time.h>
 #include <ncurses.h>
 #include "map.h"
+#include "colours.h"
 
 int main() {
 	srand(time(NULL));
