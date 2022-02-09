@@ -6,6 +6,8 @@
 #include "colours.h"
 #include "actor.h"
 #include "beacon.h"
+#include "item.h"
+#include "designation.h"
 
 static struct cursor {
 	int x, y;
@@ -23,7 +25,9 @@ void generateMap() {
 
 void draw() {
 	map_draw(0, 0);
+	item_drawAll(0, 0);
 	actor_drawAll(0, 0);
+	designation_drawAll(0, 0);
 	move(cursor.y, cursor.x);
 }
 
@@ -58,7 +62,7 @@ int main() {
 			actor_moveTo(player, cursor.x, cursor.y);
 			break;
 		case '\n':
-			actor_target(player, cursor.x, cursor.y);
+			map_designateDestroy(cursor.x, cursor.y);
 			break;
 		case KEY_UP:
 			if(cursor.y > 0)
@@ -90,6 +94,8 @@ int main() {
 	beacon_freeAll();
 	actor_freeAll();
 	map_free();
+	designation_freeAll();
+	item_freeAll();
 
 	keypad(stdscr, 0);
 	timeout(-1);

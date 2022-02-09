@@ -13,6 +13,7 @@ enum {
 	T_NONE,
 	T_DOOROPEN,
 	T_DOORCLOSED,
+	T_STONEFLOOR,
 };
 
 enum {
@@ -43,5 +44,7 @@ void map_draw(int x, int y);
 int map_tileBlocks(int t);
 int map_blocks(int x, int y);
 void map_randomXY(int *x, int *y);
+void map_designateDestroy(int x, int y);
+void map_designatePlace(int x, int y, int t);
 
 #endif

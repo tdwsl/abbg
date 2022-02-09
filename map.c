@@ -4,6 +4,8 @@
 #include "map.h"
 #include "colours.h"
 #include "util.h"
+#include "item.h"
+#include "designation.h"
 
 struct map map;
 
@@ -89,6 +91,7 @@ char map_tileChar(int *t) {
 	case T_WOODWALL: return '-';//return map_autotileChar(t);
 	case T_STONEWALL: return '~';//return 176;
 	case T_FLOOR: return '.';
+	case T_STONEFLOOR: return ',';
 	default: return '?';
 	}
 }
@@ -132,18 +135,13 @@ void map_draw(int x, int y) {
 }
 
 int map_tileBlocks(int t) {
-	if(t == T_STONEWALL || t == T_WOODWALL || t == T_TREE || t == T_OUT)
-		return BLOCKS_SOLID;
-	if(t == T_DOORCLOSED)
-		return BLOCKS_DOOR;
-	return 0;
 	switch(t) {
-	T_OUT:
-	T_WOODWALL:
-	T_STONEWALL:
-	T_TREE:
+	case T_OUT:
+	case T_WOODWALL:
+	case T_STONEWALL:
+	case T_TREE:
 		return BLOCKS_SOLID;
-	T_DOORCLOSED:
+	case T_DOORCLOSED:
 		return BLOCKS_DOOR;
 	default:
 		return 0;
@@ -152,4 +150,72 @@ int map_tileBlocks(int t) {
 
 int map_blocks(int x, int y) {
 	return map_tileBlocks(map_getTile(x, y));
+}
+
+int map_tileYield(int t) {
+	switch(t) {
+	case T_TREE:
+	case T_DOOROPEN:
+	case T_DOORCLOSED:
+		return ITEM_WOOD;
+	default:
+		return ITEM_NONE;
+	}
+}
+
+int map_tileBase(int t) {
+	switch(t) {
+	case T_TREE:
+	case T_FLOOR:
+	case T_WOODWALL:
+		return T_GRASS;
+	case T_STONEWALL:
+		return T_STONEFLOOR;
+	default:
+		return T_NONE;
+	}
+}
+
+int map_tileRequirements(int t) {
+	switch(t) {
+	case T_WOODWALL:
+	case T_DOORCLOSED:
+		return ITEM_WOOD;
+	default:
+		return ITEM_IMPOSSIBLE;
+	}
+}
+
+int map_tileDuration(int t) {
+	switch(t) {
+	default:
+		return 7;
+	}
+}
+
+void map_designateDestroy(int x, int y) {
+	int t = map_getTile(x, y);
+	if(t == T_OUT)
+		return;
+
+	int base = map_tileBase(t);
+	if(base == T_NONE)
+		return;
+
+	int yield = map_tileYield(t);
+	int dur = map_tileDuration(t);
+
+	designation_new(x, y, DESIGNATION_DESTROY, base, yield, dur);
+}
+
+void map_designatePlace(int x, int y, int t) {
+	if(map_outOfBounds(x, y))
+		return;
+
+	int req = map_tileRequirements(t);
+	if(req == ITEM_IMPOSSIBLE)
+		return;
+
+	int dur = 0;
+	designation_new(x, y, DESIGNATION_PLACE, t, req, dur);
 }

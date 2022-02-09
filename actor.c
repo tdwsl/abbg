@@ -1,26 +1,24 @@
 #include <stdlib.h>
 #include <ncurses.h>
+#include <stdbool.h>
 #include "map.h"
 #include "beacon.h"
 #include "actor.h"
+#include "util.h"
+#include "designation.h"
 
 struct actor *actors = 0;
-int numActors = 0;
-int maxActors = 0;
+int actor_num = 0;
+int actor_max = 0;
 
 struct actor *actor_new(int x, int y) {
-	numActors++;
-	if(numActors > maxActors) {
-		maxActors = numActors;
-		actors = realloc(actors, sizeof(struct actor)*maxActors);
-	}
-	struct actor *a = &actors[numActors-1];
+	addObject(actor);
+	struct actor *a = &actors[actor_num-1];
 
 	a->x = x;
 	a->y = y;
-	a->tx = x;
-	a->ty = y;
 	a->beacon = 0;
+	a->designation = 0;
 
 	return a;
 }
@@ -34,42 +32,28 @@ void actor_detachBeacon(struct actor *a) {
 
 void actor_delete(struct actor *a) {
 	actor_detachBeacon(a);
-	int i;
-	for(i = 0; &actors[i] != a; i++);
-	numActors--;
-	actors[i] = actors[numActors];
+	deleteObject(a, actor);
 }
 
 void actor_freeAll() {
-	numActors = 0;
-	maxActors = 0;
-	if(actors)
-		free(actors);
-	actors = 0;
+	freeObjects(actor);
 }
 
-void actor_target(struct actor *a, int x, int y) {
-	a->tx = x;
-	a->ty = y;
-
+void actor_target(struct actor *a, int x, int y, int dist) {
 	if(a->beacon)
 		actor_detachBeacon(a);
 
-	a->beacon = beacon_searchAll(x, y);
+	a->beacon = beacon_searchAll(x, y, dist);
 	if(a->beacon) {
 		a->beacon->users++;
 		return;
 	}
 
-	a->beacon = beacon_new(x, y);
+	a->beacon = beacon_new(x, y, dist);
 	if(a->beacon) {
 		a->beacon->users++;
 		return;
 	}
-
-	/* failed */
-	a->tx = a->x;
-	a->ty = a->y;
 }
 
 void actor_moveTo(struct actor *a, int x, int y) {
@@ -85,6 +69,31 @@ void actor_moveTo(struct actor *a, int x, int y) {
 	a->y = y;
 }
 
+void actor_stop(struct actor *a) {
+	if(a->designation) {
+		a->designation->active = false;
+		a->designation = 0;
+	}
+	if(a->beacon)
+		actor_detachBeacon(a);
+}
+
+void actor_findTask(struct actor *a) {
+	struct designation *d = designation_findNearest(a->x, a->y);
+	if(!d)
+		return;
+
+	if(d->active)
+		return;
+
+	actor_target(a, d->x, d->y, 1);
+	if(!a->beacon)
+		return;
+
+	d->active = true;
+	a->designation = d;
+}
+
 void actor_followBeacon(struct actor *a) {
 	if(!a->beacon)
 		return;
@@ -93,13 +102,36 @@ void actor_followBeacon(struct actor *a) {
 	beacon_follow(a->beacon, &dx, &dy);
 
 	actor_moveTo(a, dx, dy);
-	if(a->x == a->tx && a->y == a->ty)
-		actor_detachBeacon(a);
+}
+
+void actor_progressDesignation(struct actor *a) {
+	a->designation->duration--;
+	if(a->designation->duration <= 0) {
+		designation_complete(a->designation);
+		designation_delete(a->designation);
+		a->designation = 0;
+		if(a->beacon)
+			actor_detachBeacon(a);
+	}
 }
 
 void actor_update(struct actor *a) {
-	if(a->x != a->tx || a->y != a->ty)
+	if(actor_idle(a)) {
+		actor_findTask(a);
+		return;
+	}
+
+	if(a->designation) {
+		if(a->beacon->arr[(a->y)*map.w+(a->x)])
+			actor_followBeacon(a);
+		else
+			actor_progressDesignation(a);
+	}
+	else if(a->beacon) {
 		actor_followBeacon(a);
+		if(a->beacon->arr[(a->y)*map.w+(a->x)] <= 0)
+			actor_detachBeacon(a);
+	}
 }
 
 void actor_draw(struct actor *a, int x, int y) {
@@ -107,11 +139,20 @@ void actor_draw(struct actor *a, int x, int y) {
 }
 
 void actor_updateAll() {
-	for(int i = 0; i < numActors; i++)
+	for(int i = 0; i < actor_num; i++)
 		actor_update(&actors[i]);
 }
 
 void actor_drawAll(int x, int y) {
-	for(int i = 0; i < numActors; i++)
+	for(int i = 0; i < actor_num; i++)
 		actor_draw(&actors[i], x, y);
+}
+
+bool actor_idle(struct actor *a) {
+	if(a->beacon)
+		return false;
+	if(a->designation)
+		return false;
+
+	return true;
 }

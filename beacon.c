@@ -5,24 +5,21 @@
 #include "util.h"
 
 struct beacon *beacons = 0;
-int maxBeacons = 0;
-int numBeacons = 0;
+int beacon_num = 0;
+int beacon_max = 0;
 
-struct beacon *beacon_new(int x, int y) {
+struct beacon *beacon_new(int x, int y, int dist) {
 	if(map_outOfBounds(x, y))
 		return 0;
 
-	numBeacons++;
-	if(numBeacons > maxBeacons) {
-		maxBeacons = numBeacons;
-		beacons = realloc(beacons, sizeof(struct beacon)*maxBeacons);
-	}
-	struct beacon *b = &beacons[numBeacons-1];
+	addObject(beacon);
+	struct beacon *b = &beacons[beacon_num-1];
 
 	b->x = x;
 	b->y = y;
 	b->users = 0;
 	b->arr = malloc(sizeof(int)*map.w*map.h);
+	b->dist = dist;
 	beacon_update(b);
 
 	return b;
@@ -36,34 +33,18 @@ void beacon_update(struct beacon *b) {
 
 	b->arr[b->y*map.w+b->x] = 1;
 
-	bool stuck = false;
-	for(int g = 1; !stuck; g++) {
-		stuck = true;
-		for(int i = 0; i < map.w*map.h; i++) {
-			if(b->arr[i] != g)
-				continue;
+	heatmap(b->arr, map.w, map.h);
 
-			for(int d = 0; d < 8; d++) {
-				int dx, dy;
-				if(d < 4) {
-					dx = i%map.w+dirs[d*2];
-					dy = i/map.w+dirs[d*2+1];
-				}
-				else {
-					dx = i%map.w+xddirs[(d-4)*2];
-					dy = i/map.w+xddirs[(d-4)*2+1];
-				}
-
-				if(map_outOfBounds(dx, dy))
-					continue;
-				if(b->arr[dy*map.w+dx])
-					continue;
-
-				stuck = false;
-				b->arr[dy*map.w+dx] = g+1;
-			}
+	for(int i = 0; i < b->dist; i++)
+		for(int j = 0; j < map.w*map.h; j++) {
+			if(b->arr[j] == 0)
+				b->arr[j] = -2;
+			else if(b->arr[j] != -1)
+				b->arr[j]--;
 		}
-	}
+	for(int i = 0; i < map.w*map.h; i++)
+		if(b->arr[i] <= -2)
+			b->arr[i] = b->arr[i] * -1 - 1;
 
 	/*move(0, 0);
 	for(int i = 0; i < map.w*map.h; i++) {
@@ -72,13 +53,10 @@ void beacon_update(struct beacon *b) {
 			printw("#");
 			break;
 		case 0:
-			printw(" ");
+			printw("*");
 			break;
 		default:
-			if(b->arr[i] < 15)
-				printw(".");
-			else
-				printw("*");
+			printw("%d", b->arr[i]%10);
 			break;
 		}
 		if(!((i+1)%map.w))
@@ -88,7 +66,7 @@ void beacon_update(struct beacon *b) {
 }
 
 void beacon_follow(struct beacon *b, int *x, int *y) {
-	if(!b->arr[(*y)*map.w+(*x)])
+	if(b->arr[(*y)*map.w+(*x)] <= 0)
 		return;
 
 	for(int d = 0; d < 8; d++) {
@@ -116,10 +94,7 @@ void beacon_follow(struct beacon *b, int *x, int *y) {
 void beacon_delete(struct beacon *b) {
 	free(b->arr);
 	b->arr = 0;
-	int i;
-	for(i = 0; &beacons[i] != b; i++);
-	numBeacons--;
-	beacons[i] = beacons[numBeacons];
+	deleteObject(b, beacon);
 }
 
 void beacon_detach(struct beacon *b) {
@@ -128,24 +103,20 @@ void beacon_detach(struct beacon *b) {
 		beacon_delete(b);
 }
 
-struct beacon *beacon_searchAll(int x, int y) {
-	for(int i = 0; i < numBeacons; i++)
-		if(beacons[i].x == x && beacons[i].y == y)
-			return &beacons[numBeacons];
+struct beacon *beacon_searchAll(int x, int y, int dist) {
+	for(int i = 0; i < beacon_num; i++)
+		if(beacons[i].x == x && beacons[i].y == y && beacons[i].dist == dist)
+			return &beacons[i];
 	return 0;
 }
 
 void beacon_freeAll() {
-	for(int i = 0; i < numBeacons; i++)
+	for(int i = 0; i < beacon_num; i++)
 		free(beacons[i].arr);
-	numBeacons = 0;
-	maxBeacons = 0;
-	if(beacons)
-		free(beacons);
-	beacons = 0;
+	freeObjects(beacon);
 }
 
 void beacon_updateAll() {
-	for(int i = 0; i < numBeacons; i++)
+	for(int i = 0; i < beacon_num; i++)
 		beacon_update(&beacons[i]);
 }
