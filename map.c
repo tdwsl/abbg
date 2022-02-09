@@ -3,15 +3,10 @@
 #include <ncurses.h>
 #include "map.h"
 #include "colours.h"
-
-const int dirs[] = {
-	0,-1,
-	1,0,
-	0,1,
-	-1,0,
-};
+#include "util.h"
 
 struct map map;
+
 int baseTile = T_GRASS;
 
 void map_init(int w, int h, int t) {
@@ -33,6 +28,17 @@ int map_getTile(int x, int y) {
 void map_setTile(int x, int y, int t) {
 	if(!map_outOfBounds(x, y))
 		map.arr[y*map.w+x] = t;
+}
+
+void map_randomXY(int *x, int *y) {
+	int xy = rand() % (map.w*map.h);
+	while(map.arr[xy] != baseTile) {
+		xy++;
+		if(xy >= map.w*map.h)
+			xy = 0;
+	}
+	*x = xy%map.w;
+	*y = xy%map.h;
 }
 
 void map_scatter(int t, int n) {
@@ -123,4 +129,27 @@ void map_draw(int x, int y) {
 		mvaddch(i/map.w+y, i%map.w+x, map_tileChar(&map.arr[i]));
 	}
 	attrset(A_NORMAL);
+}
+
+int map_tileBlocks(int t) {
+	if(t == T_STONEWALL || t == T_WOODWALL || t == T_TREE || t == T_OUT)
+		return BLOCKS_SOLID;
+	if(t == T_DOORCLOSED)
+		return BLOCKS_DOOR;
+	return 0;
+	switch(t) {
+	T_OUT:
+	T_WOODWALL:
+	T_STONEWALL:
+	T_TREE:
+		return BLOCKS_SOLID;
+	T_DOORCLOSED:
+		return BLOCKS_DOOR;
+	default:
+		return 0;
+	}
+}
+
+int map_blocks(int x, int y) {
+	return map_tileBlocks(map_getTile(x, y));
 }

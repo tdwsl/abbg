@@ -11,6 +11,14 @@ enum {
 	T_TREE,
 	T_OUT,
 	T_NONE,
+	T_DOOROPEN,
+	T_DOORCLOSED,
+};
+
+enum {
+	BLOCKS_DOOR=1,
+	BLOCKS_SOLID=2,
+	BLOCKS_WATER=3,
 };
 
 struct map {
@@ -32,5 +40,8 @@ void map_print();
 void map_fillRect(int x, int y, int w, int h, int t);
 void map_expand(int t);
 void map_draw(int x, int y);
+int map_tileBlocks(int t);
+int map_blocks(int x, int y);
+void map_randomXY(int *x, int *y);
 
 #endif
